@@ -36,7 +36,7 @@
 
 </style>
 
-<label><input type="checkbox"> Sort values</label>
+<label><input id="sortCheckBox" type="checkbox"> Sort values</label>
 
 <script src="http://d3js.org/d3.v3.min.js"></script>
 
@@ -89,8 +89,7 @@
             current_data = team_data;
             makeBars(team_data);
             showing_teams = true;
-        }
-        
+        }        
     }
     
     function makeBars(data){
@@ -104,7 +103,9 @@
         d3.select('.y.axis')
             .remove();
 
-
+        var doc = document;
+        var chkbox = document.GetElementById('sortCheckBox');
+        var is_sorted = chkbox.checked;
         x.domain(current_data.sort(this.checked
             ? function(a, b) { return b.y - a.y; }
             : function(a, b) { return d3.ascending(a.x, b.x); })
