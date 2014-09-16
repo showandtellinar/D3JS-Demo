@@ -41,7 +41,6 @@
 <script src="http://d3js.org/d3.v3.min.js"></script>
 
 <script>
-
     var current_data;
     var team_data = [];
     var player_data = [];
@@ -103,9 +102,8 @@
         d3.select('.y.axis')
             .remove();
 
-        var doc = document;
-        var is_sorted = $("#checkbox").is(":checked");
-        x.domain(current_data.sort(this.checked
+        var is_sorted = $("#sortCheckBox").is(":checked");
+        x.domain(current_data.sort(is_sorted
             ? function(a, b) { return b.y - a.y; }
             : function(a, b) { return d3.ascending(a.x, b.x); })
             .map(function(d) { return d.x; }));
@@ -181,10 +179,10 @@
         makeBars(team_data);
         showing_teams = true;
     
-        d3.select("input").on("change", change);
+        d3.select("input").on("change", sortBars);
     });
 
-    function change() {
+    function sortBars() {
         // Copy-on-write since tweens are evaluated after a delay.
         var x0 = x.domain(current_data.sort(this.checked
             ? function(a, b) { return b.y - a.y; }
