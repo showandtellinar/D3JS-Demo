@@ -2,42 +2,50 @@
 <meta charset="utf-8">
 <style>
 
-body {
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  position: relative;
-  width: 960px;
-}
+    body {
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        position: relative;
+        width: 960px;
+    }
 
-.axis text {
-  font: 10px sans-serif;
-}
+    .axis text {
+        font: 10px sans-serif;
+    }
 
-.axis path,
-.axis line {
-  fill: none;
-  stroke: #000;
-  shape-rendering: crispEdges;
-}
+    .axis path,
+    .axis line {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+    }
 
-.bar {
-  fill: steelblue;
-  fill-opacity: .9;
-}
+    .bar {
+        fill: steelblue;
+        fill-opacity: .9;
+    }
 
-.x.axis path {
-  display: none;
-}
+    .x.axis path {
+        display: none;
+    }
 
-label {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-}
+    label {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
 
 </style>
+
 <label><input type="checkbox"> Sort values</label>
+
 <script src="http://d3js.org/d3.v3.min.js"></script>
+
 <script>
+
+    var current_data;
+    var team_data = [];
+    var player_data = [];
+    var showing_teams;
 
     var margin = {top: 20, right: 20, bottom: 100, left: 40},
         width = 960 - margin.left - margin.right,
@@ -63,43 +71,51 @@ label {
         .append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-    function teamClicked(d, i){
-            var team = d.x;
-        
+    function barClicked(d, i){
+        if(showing_teams){
+            var team = d.x;        
             var players_for_team = [];
-            by_receiver.forEach(function(d){
+            player_data.forEach(function(d){
                 if(d.team == team){
                     players_for_team.push({'x':d.x, 'y':d.y});
                 }
             });
         
-        
-            d3.selectAll('rect')
-                .data(players_for_team)
-                .exit()
-                .transition()
-                .ease("exp")
-                .attr("width", 0)
-                .remove();
-            svg.selectAll(".bar")
-                .data(players_for_team)
-                .enter().append("rect")
-                .attr("class", "bar")
-                .attr("x", function(d) { return x(d.x); })
-                .attr("width", x.rangeBand())
-                .attr("y", function(d) { return y(d.y); })
-                .attr("height", function(d) { return height - y(d.y); })
+            current_data = players_for_team;
+            makeBars(players_for_team);
+            showing_teams = false;
         }
+        else{
+            current_data = team_data;
+            makeBars(team_data);
+            showing_teams = true;
+        }
+        
+    }
     
     function makeBars(data){
-        x.domain(data.map(function(d) { return d.x; }));
+        //Remove any old bars
+        var rects = svg.selectAll('rect')
+            .data(data, function(d){return d.x;});
+        
+        //Remove any old axis
+        d3.select('.x.axis')
+            .remove();
+        d3.select('.y.axis')
+            .remove();
+
+
+        x.domain(current_data.sort(this.checked
+            ? function(a, b) { return b.y - a.y; }
+            : function(a, b) { return d3.ascending(a.x, b.x); })
+            .map(function(d) { return d.x; }));
         y.domain([0, d3.max(data, function(d) { return d.y; })]);
 
         svg.append("g")
             .attr("class", "x axis")
             .attr("transform", "translate(0," + height + ")")
-            .call(xAxis)
             .call(xAxis.scale(x))
+            .call(xAxis)            
             .selectAll("text")
             .style("text-anchor", "end")
             .attr("dx", "-.8em")
@@ -110,84 +126,83 @@ label {
 
         svg.append("g")
             .attr("class", "y axis")
-            .call(yAxis)
             .call(yAxis.scale(y))
+            .call(yAxis)            
             .append("text")
             .attr("transform", "rotate(-90)")
             .attr("y", 6)
             .attr("dy", ".71em")
             .style("text-anchor", "end")
-            .text("Passing Yards");
+            .text("Yards");
 
-        svg.selectAll(".bar")
-            .data(data)
-            .enter().append("rect")
+        rects.exit()
+            .transition()
+            .attr("width", 0)
+            .remove();
+
+        rects.enter()
+            .append("rect")
             .attr("class", "bar")
+            .on("click", barClicked)
+            .transition()
+            .delay(500)
             .attr("x", function(d) { return x(d.x); })
             .attr("width", x.rangeBand())
             .attr("y", function(d) { return y(d.y); })
-            .attr("height", function(d) { return height - y(d.y); })
-            .on("click", teamClicked);
+            .attr("height", function(d) { return height - y(d.y); });
     }
-        var by_receiver = [];
-        d3.csv("receiving.csv", function(error, data){            
-            data.forEach(function(d){
-                by_receiver.push({'x':d.Player, 'y':parseInt(d.Yds), 'team':d.Tm});
-            });
+    
+    d3.csv("receiving.csv", function(error, data){            
+        data.forEach(function(d){
+            player_data.push({'x':d.Player, 'y':parseInt(d.Yds), 'team':d.Tm});
         });
-        
-            d3.csv("passing.csv", function(error, data) {
-                var by_team = [];
-                data.forEach(function(d) {
-                    var team_already_exists = false;
-                    var i;
-                    for(i = 0; i < by_team.length; i++){
-                        if(by_team[i].x == d.Tm){
-                            team_already_exists = true;
-                            break;
-                        }
-                    }
-                    if(team_already_exists){
-                        var old_yds = by_team[i].y;
-                        var new_yds = old_yds + parseInt(d.Yds);
-                        by_team[i].y = new_yds;
-                    }
-                    else{
-                        by_team.push({'x':d.Tm, 'y':parseInt(d.Yds)});
-                    }
-                });
-        
-        makeBars(by_team);
+    });
+    
+    d3.csv("passing.csv", function(error, data) {
+        data.forEach(function(d) {
+            var team_already_exists = false;
+            var i;
+            for(i = 0; i < team_data.length; i++){
+                if(team_data[i].x == d.Tm){
+                    team_already_exists = true;
+                    break;
+                }
+            }
+            if(team_already_exists){
+                var old_yds = team_data[i].y;
+                var new_yds = old_yds + parseInt(d.Yds);
+                team_data[i].y = new_yds;
+            }
+            else{
+                team_data.push({'x':d.Tm, 'y':parseInt(d.Yds)});
+            }
+        });
+        current_data = team_data;
+        makeBars(team_data);
+        showing_teams = true;
     
         d3.select("input").on("change", change);
-
-        var sortTimeout = setTimeout(function() {
-            d3.select("input").property("checked", true).each(change);
-        }, 1000);
-
-
-        function change() {
-            clearTimeout(sortTimeout);
-
-            // Copy-on-write since tweens are evaluated after a delay.
-            var x0 = x.domain(by_team.sort(this.checked
-                ? function(a, b) { return b.y - a.y; }
-                : function(a, b) { return d3.ascending(a.x, b.x); })
-                .map(function(d) { return d.x; }))
-                .copy();
-
-            var transition = svg.transition().duration(750),
-                delay = function(d, i) { return i * 50; };
-
-            transition.selectAll(".bar")
-                .delay(delay)
-                .attr("x", function(d) { return x0(d.x); });
-
-            transition.select(".x.axis")
-                .call(xAxis)
-              .selectAll("g")
-                .delay(delay);
-        }
     });
+
+    function change() {
+        // Copy-on-write since tweens are evaluated after a delay.
+        var x0 = x.domain(current_data.sort(this.checked
+            ? function(a, b) { return b.y - a.y; }
+            : function(a, b) { return d3.ascending(a.x, b.x); })
+            .map(function(d) { return d.x; }))
+            .copy();
+
+        var transition = svg.transition().duration(750),
+            delay = function(d, i) { return i * 50; };
+
+        transition.selectAll(".bar")
+            .delay(delay)
+            .attr("x", function(d) { return x0(d.x); });
+
+        transition.select(".x.axis")
+            .call(xAxis)
+            .selectAll("g")
+            .delay(delay);
+    }
 
 </script>
